@@ -209,12 +209,13 @@ class _TaskRunner:
 
         # Run main task
         try:
-            if self.task.retry:
-                self._run_with_retry()
-            elif callable(self.task.command):
-                self._run_callable()
+            cmd = self.task.command
+            if callable(cmd):
+                self._run_callable(cmd)
+            elif self.task.retry:
+                self._run_with_retry(cmd)
             else:
-                self._run_subprocess()
+                self._run_subprocess(cmd)
         finally:
             # Stop children that should be killed
             for child, thread in child_threads:
@@ -257,11 +258,11 @@ class _TaskRunner:
         for child in task.children:
             self._stop_task(child)
 
-    def _run_with_retry(self) -> None:
+    def _run_with_retry(self, cmd: str) -> None:
         """Run command with retry on failure."""
         while not self.task._stopped:
             self.task._process = subprocess.Popen(
-                self.task.command,
+                cmd,
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -292,13 +293,13 @@ class _TaskRunner:
         self.task.status = TaskStatus.SUCCESS
         self.task.exit_code = 0
 
-    def _run_subprocess(self) -> None:
+    def _run_subprocess(self, cmd: str) -> None:
         """Run a shell command."""
         env = {**os.environ, **self.task.env}
         cwd = str(self.task.cwd) if self.task.cwd else None
 
         self.task._process = subprocess.Popen(
-            self.task.command,
+            cmd,
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -322,11 +323,10 @@ class _TaskRunner:
         self.task.exit_code = self.task._process.returncode
         self.task.status = TaskStatus.SUCCESS if self.task.exit_code == 0 else TaskStatus.FAILED
 
-    def _run_callable(self) -> None:
+    def _run_callable(self, cmd: Callable[[], None]) -> None:
         """Run a callable."""
         try:
-            if callable(self.task.command):
-                self.task.command()
+            cmd()
             self.task.status = TaskStatus.SUCCESS
             self.task.exit_code = 0
         except Exception as e:
