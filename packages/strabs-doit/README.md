@@ -2,7 +2,7 @@
 
 For when you just want to get stuff done. Stop overthinking. Stop planning. Just do it.
 
-![Do it](https://media.giphy.com/media/wi8Ez1mwRcKGI/giphy.gif)
+![Do it](https://media.giphy.com/media/wi8Ez1mwRcKGI/giphy.gif) [![asciicast](https://asciinema.org/a/CNvT2pVZAVDhtJaEdaBYqD5hy.svg)](https://asciinema.org/a/CNvT2pVZAVDhtJaEdaBYqD5hy)
 
 ```bash
 pip install strabs-doit
