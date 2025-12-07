@@ -1,0 +1,16 @@
+[project]
+name = "strabs-doit"
+version = "0.1.0"
+description = "For when you just want to get stuff done. Task runner with parallel execution."
+requires-python = ">=3.10"
+dependencies = ["rich>=14.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=9.0", "ruff>=0.14", "mypy>=1.19"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/strabs"]
