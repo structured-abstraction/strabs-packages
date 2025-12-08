@@ -45,7 +45,9 @@ class ClusterConfig:
 
 
 class Cluster:
-    def __init__(self, c: Context, config: ClusterConfig, config_patch: str | None = None):
+    def __init__(
+        self, c: Context, config: ClusterConfig, config_patch: str | None = None
+    ):
         self.c = c
         self.cfg = config
         self.config_patch = config_patch
@@ -53,7 +55,8 @@ class Cluster:
     def _get_control_plane_ip(self) -> str:
         result = self.c.run(
             f"docker inspect -f '{{{{range .NetworkSettings.Networks}}}}{{{{.IPAddress}}}}{{{{end}}}}' {self.cfg.control_plane_container}",
-            hide=True, warn=True,
+            hide=True,
+            warn=True,
         )
         if result is None or not result.ok:
             return ""
@@ -92,11 +95,13 @@ class Cluster:
             f"--wait"
         )
 
-        _doit([
-            run(f"Creating cluster '{self.cfg.name}'", create_cmd)
-            .watching(f"docker logs -f {self.cfg.name}-controlplane-1 2>&1")
-            .watching(f"docker logs -f {self.cfg.name}-worker-1 2>&1")
-        ])
+        _doit(
+            [
+                run(f"Creating cluster '{self.cfg.name}'", create_cmd)
+                .watching(f"docker logs -f {self.cfg.name}-controlplane-1 2>&1")
+                .watching(f"docker logs -f {self.cfg.name}-worker-1 2>&1")
+            ]
+        )
 
         cp_ip = self.require_control_plane_ip()
         self.cfg.kubeconfigs_dir.mkdir(parents=True, exist_ok=True)
@@ -109,24 +114,34 @@ class Cluster:
             exit 1
         """
 
-        _doit([
-            run("Merging talosconfig", f"talosctl config merge {self.cfg.talosconfig}"),
-            run("Exporting kubeconfig", kubeconfig_cmd),
-        ])
+        _doit(
+            [
+                run(
+                    "Merging talosconfig",
+                    f"talosctl config merge {self.cfg.talosconfig}",
+                ),
+                run("Exporting kubeconfig", kubeconfig_cmd),
+            ]
+        )
 
         print(f"\nCluster ready. Use: kubie ctx {self.cfg.context}")
 
     def teardown(self):
         """Destroy the Talos cluster."""
-        _doit([
-            run(f"Destroying cluster '{self.cfg.name}'", f"talosctl cluster destroy --name {self.cfg.name}"),
-            run(
-                "Cleaning kubectl config",
-                f"kubectl config delete-context {self.cfg.context} 2>/dev/null; "
-                f"kubectl config delete-cluster {self.cfg.name} 2>/dev/null; "
-                f"kubectl config delete-user admin@{self.cfg.name} 2>/dev/null; true",
-            ),
-        ])
+        _doit(
+            [
+                run(
+                    f"Destroying cluster '{self.cfg.name}'",
+                    f"talosctl cluster destroy --name {self.cfg.name}",
+                ),
+                run(
+                    "Cleaning kubectl config",
+                    f"kubectl config delete-context {self.cfg.context} 2>/dev/null; "
+                    f"kubectl config delete-cluster {self.cfg.name} 2>/dev/null; "
+                    f"kubectl config delete-user admin@{self.cfg.name} 2>/dev/null; true",
+                ),
+            ]
+        )
         self.cfg.kubeconfig_path("local").unlink(missing_ok=True)
         self.cfg.deployer_kubeconfig_path("local").unlink(missing_ok=True)
 
@@ -135,11 +150,26 @@ class Cluster:
         cp_ip = self.require_control_plane_ip()
         kubeconfig = self.cfg.kubeconfig_path("local")
         self.cfg.kubeconfigs_dir.mkdir(parents=True, exist_ok=True)
-        _doit([run("Exporting kubeconfig", f"talosctl kubeconfig {kubeconfig} -n {cp_ip} --force")])
+        _doit(
+            [
+                run(
+                    "Exporting kubeconfig",
+                    f"talosctl kubeconfig {kubeconfig} -n {cp_ip} --force",
+                )
+            ]
+        )
         print(f"Use: kubie ctx {self.cfg.context}")
 
     def status(self):
         """Show cluster status."""
         cp_ip = self.require_control_plane_ip()
-        self.c.run(f"talosctl --talosconfig {self.cfg.talosconfig} --nodes {cp_ip} --endpoints {cp_ip} get members", pty=True, warn=True)
-        self.c.run(f"kubectl --context {self.cfg.context} get nodes -o wide", pty=True, warn=True)
+        self.c.run(
+            f"talosctl --talosconfig {self.cfg.talosconfig} --nodes {cp_ip} --endpoints {cp_ip} get members",
+            pty=True,
+            warn=True,
+        )
+        self.c.run(
+            f"kubectl --context {self.cfg.context} get nodes -o wide",
+            pty=True,
+            warn=True,
+        )

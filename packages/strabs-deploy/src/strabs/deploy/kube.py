@@ -111,24 +111,53 @@ users:
 
 def ensure_namespace(name: str, privileged: bool = False) -> None:
     """Create namespace if it doesn't exist, optionally with privileged PSA."""
-    doit([run(f"Creating namespace '{name}'", f"kubectl create namespace {name} 2>/dev/null || true")])
+    doit(
+        [
+            run(
+                f"Creating namespace '{name}'",
+                f"kubectl create namespace {name} 2>/dev/null || true",
+            )
+        ]
+    )
     if privileged:
         patch_namespace_privileged(name)
 
 
 def patch_namespace_privileged(name: str) -> None:
     """Patch namespace with privileged pod security level."""
-    doit([run(f"Patching namespace '{name}'", f"kubectl label namespace {name} pod-security.kubernetes.io/enforce=privileged --overwrite")])
+    doit(
+        [
+            run(
+                f"Patching namespace '{name}'",
+                f"kubectl label namespace {name} pod-security.kubernetes.io/enforce=privileged --overwrite",
+            )
+        ]
+    )
 
 
 def wait_for_deployment(name: str, namespace: str, timeout: int = 300) -> None:
     """Wait for deployment to be available."""
-    doit([run(f"Waiting for {name}", f"kubectl wait --for=condition=Available deployment/{name} -n {namespace} --timeout={timeout}s")])
+    doit(
+        [
+            run(
+                f"Waiting for {name}",
+                f"kubectl wait --for=condition=Available deployment/{name} -n {namespace} --timeout={timeout}s",
+            )
+        ]
+    )
 
 
 def create_tls_secret(name: str, namespace: str, cert_path: str, key_path: str) -> None:
     """Create or update a TLS secret."""
-    doit([
-        run(f"Deleting old secret '{name}'", f"kubectl delete secret {name} -n {namespace} 2>/dev/null || true"),
-        run(f"Creating secret '{name}'", f"kubectl create secret tls {name} -n {namespace} --cert={cert_path} --key={key_path}"),
-    ])
+    doit(
+        [
+            run(
+                f"Deleting old secret '{name}'",
+                f"kubectl delete secret {name} -n {namespace} 2>/dev/null || true",
+            ),
+            run(
+                f"Creating secret '{name}'",
+                f"kubectl create secret tls {name} -n {namespace} --cert={cert_path} --key={key_path}",
+            ),
+        ]
+    )

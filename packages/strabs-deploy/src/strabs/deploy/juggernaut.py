@@ -103,7 +103,12 @@ def render_prereqs(
     privileged_namespaces = data.get("privilegedNamespaces", [])
 
     # Render additional KCL manifests (clusterissuers, etc.)
-    kcl_yaml(c, prereqs_manifests_file, params_file, output=manifests_dir / "kcl-manifests.yaml")
+    kcl_yaml(
+        c,
+        prereqs_manifests_file,
+        params_file,
+        output=manifests_dir / "kcl-manifests.yaml",
+    )
 
     # Write helm values files
     for name, values in helm_values.items():

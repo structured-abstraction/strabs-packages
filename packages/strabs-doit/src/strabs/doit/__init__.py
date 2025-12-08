@@ -321,7 +321,9 @@ class _TaskRunner:
 
         self.task._process.wait()
         self.task.exit_code = self.task._process.returncode
-        self.task.status = TaskStatus.SUCCESS if self.task.exit_code == 0 else TaskStatus.FAILED
+        self.task.status = (
+            TaskStatus.SUCCESS if self.task.exit_code == 0 else TaskStatus.FAILED
+        )
 
     def _run_callable(self, cmd: Callable[[], None]) -> None:
         """Run a callable."""
@@ -381,7 +383,9 @@ class _DisplayRenderer:
             status_line.append("")
         else:
             status_line.append(prefix, style="dim")
-            status_line.append(self.TREE_LAST if is_last else self.TREE_BRANCH, style="dim")
+            status_line.append(
+                self.TREE_LAST if is_last else self.TREE_BRANCH, style="dim"
+            )
 
         if task.status == TaskStatus.RUNNING:
             status_line.append(f"{spinner} ", style="blue bold")
@@ -410,17 +414,19 @@ class _DisplayRenderer:
             output_prefix = self.TREE_PIPE if task.children else self.TREE_SPACE
         else:
             child_prefix = prefix + (self.TREE_SPACE if is_last else self.TREE_PIPE)
-            output_prefix = child_prefix + (self.TREE_PIPE if task.children else self.TREE_SPACE)
+            output_prefix = child_prefix + (
+                self.TREE_PIPE if task.children else self.TREE_SPACE
+            )
 
         # Task output
         if task.status == TaskStatus.RUNNING:
-            for line in task.output_lines[-self.output_lines:]:
+            for line in task.output_lines[-self.output_lines :]:
                 output_line = Text()
                 output_line.append(output_prefix, style="dim")
                 output_line.append(line, style="dim")
                 lines.append(output_line)
         elif task.status == TaskStatus.FAILED:
-            for line in task.all_output[-self.error_lines:]:
+            for line in task.all_output[-self.error_lines :]:
                 output_line = Text()
                 output_line.append(output_prefix, style="dim")
                 output_line.append(line, style="red dim")
@@ -434,7 +440,7 @@ class _DisplayRenderer:
         # Children (after output, recursively)
         if task.status == TaskStatus.RUNNING:
             for i, child in enumerate(task.children):
-                is_last_child = (i == len(task.children) - 1)
+                is_last_child = i == len(task.children) - 1
                 lines.extend(self._render_task(child, child_prefix, is_last_child))
 
         return lines
@@ -502,9 +508,15 @@ def _run_parallel(tasks: list[_RunningTask], config: RunConfig) -> list[TaskResu
     runners = [_TaskRunner(task, config.output_lines) for task in tasks]
     renderer = _DisplayRenderer(tasks, config.output_lines, config.error_lines)
 
-    with Live(renderer.render(), refresh_per_second=10, console=renderer.console) as live:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=config.max_workers) as executor:
-            futures = {executor.submit(runner.run): runner.task.name for runner in runners}
+    with Live(
+        renderer.render(), refresh_per_second=10, console=renderer.console
+    ) as live:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=config.max_workers
+        ) as executor:
+            futures = {
+                executor.submit(runner.run): runner.task.name for runner in runners
+            }
 
             while futures:
                 live.update(renderer.render())
