@@ -3,7 +3,7 @@ name = "strabs-deploy"
 version = "0.1.1"
 description = "Kubernetes deployment utilities"
 requires-python = ">=3.10"
-dependencies = ["strabs-doit", "invoke", "rich", "pyyaml"]
+dependencies = ["strabs-doit>=0.1.1", "invoke", "rich", "pyyaml"]
 
 [project.optional-dependencies]
 dev = ["pytest>=9.0", "ruff>=0.14", "mypy>=1.19", "types-PyYAML"]
@@ -14,3 +14,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/strabs"]
+
+[tool.uv.sources]
+strabs-doit = { workspace = true }

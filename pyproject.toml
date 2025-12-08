@@ -1,0 +1,8 @@
+[project]
+name = "strabs-packages"
+version = "0.0.0"
+description = "Strabs monorepo workspace"
+requires-python = ">=3.10"
+
+[tool.uv.workspace]
+members = ["packages/*"]
