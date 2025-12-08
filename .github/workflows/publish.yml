@@ -9,7 +9,7 @@ on:
         type: choice
         options:
           - strabs-doit
-          - strabs-helm
+          - strabs-deploy
           - strabs-juggernaut
       bump:
         description: "Version bump type"
