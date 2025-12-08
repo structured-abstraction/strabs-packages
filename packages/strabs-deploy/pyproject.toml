@@ -1,6 +1,6 @@
 [project]
 name = "strabs-deploy"
-version = "0.1.0"
+version = "0.1.1"
 description = "Kubernetes deployment utilities"
 requires-python = ">=3.10"
 dependencies = ["strabs-doit", "invoke", "rich", "pyyaml"]
