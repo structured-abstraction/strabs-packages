@@ -1,13 +1,6 @@
 """
-strabs.helm - Type-safe interface for Helm chart operations.
-
-Provides:
-- Adding and updating helm repositories
-- Templating charts to rendered manifests
-- Post-processing rendered manifests (patching)
+Helm chart operations.
 """
-
-__version__ = "0.1.0"
 
 import shutil
 import subprocess
