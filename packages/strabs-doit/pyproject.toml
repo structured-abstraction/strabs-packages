@@ -1,6 +1,6 @@
 [project]
 name = "strabs-doit"
-version = "0.1.0"
+version = "0.1.1"
 description = "For when you just want to get stuff done. Task runner with parallel execution."
 requires-python = ">=3.10"
 dependencies = ["rich>=14.0"]
