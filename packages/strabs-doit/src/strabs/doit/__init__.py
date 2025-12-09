@@ -34,7 +34,7 @@ Example:
     ])
 """
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 
 import concurrent.futures
 import os
@@ -84,6 +84,7 @@ class RunConfig:
     output_lines: int = 3
     error_lines: int = 20
     fail_fast: bool = False
+    raise_on_failure: bool = True
 
 
 class SubtaskError(Exception):
@@ -491,7 +492,7 @@ def _run_tasks(
 
         failed = [r for r in results if not r.ok]
         if failed:
-            if config.fail_fast:
+            if config.fail_fast or config.raise_on_failure:
                 raise SubtaskError(
                     failed[0].name,
                     failed[0].exit_code,
