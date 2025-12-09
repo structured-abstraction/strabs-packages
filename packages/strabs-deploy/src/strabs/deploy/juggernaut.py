@@ -136,6 +136,17 @@ def render_prereqs(
                 f"--output-dir {manifests_dir}"
             )
             render_tasks.append(run(name, cmd))
+        elif prereq["type"] == "oci-helm":
+            values_file = work_dir / f"{name}-values.yaml"
+            cmd = (
+                f"helm template {name} {prereq['ociUrl']} "
+                f"--version {prereq['version']} "
+                f"--namespace {prereq['namespace']} "
+                f"--skip-tests "
+                f"-f {values_file} "
+                f"--output-dir {manifests_dir}"
+            )
+            render_tasks.append(run(name, cmd))
 
     doit(render_tasks)
 
