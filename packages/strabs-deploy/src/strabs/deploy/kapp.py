@@ -31,6 +31,12 @@ def _confirm(c: Context, kapp_cmd: str, action: str, force: bool) -> bool:
     for line in lines:
         print(line)
 
+    # If kapp failed with actual error (not user cancellation), don't prompt
+    # "kapp: Error: Stopped" is expected when dry-run says "n", ignore it
+    has_real_error = "kapp: Error:" in result.stdout and "kapp: Error: Stopped" not in result.stdout
+    if has_real_error:
+        return False
+
     if input(f"\n{action}? [y/N] ").strip().lower() != "y":
         print("Aborted.")
         return False
