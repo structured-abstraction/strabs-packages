@@ -9,13 +9,13 @@ from typing import Generator
 
 from invoke import Context
 
-from strabs.doit import doit, run
+from strabs.doit import doit, run, RunConfig
 
 
 def _confirm(c: Context, kapp_cmd: str, action: str, force: bool) -> bool:
     """Run kapp command with confirmation prompt."""
     if force:
-        results = doit([run(action, f"{kapp_cmd} -y")])
+        results = doit([run(action, f"{kapp_cmd} -y")], RunConfig(raise_on_failure=False))
         return all(r.ok for r in results)
 
     result = c.run(f"yes n 2>/dev/null | {kapp_cmd}", pty=True, hide=True, warn=True)
@@ -38,7 +38,7 @@ def _confirm(c: Context, kapp_cmd: str, action: str, force: bool) -> bool:
     # Clear the diff output (lines + blank line + prompt line)
     print(f"\x1b[{len(lines) + 2}A\x1b[J", end="")
 
-    results = doit([run(action, f"{kapp_cmd} -y")])
+    results = doit([run(action, f"{kapp_cmd} -y")], RunConfig(raise_on_failure=False))
     return all(r.ok for r in results)
 
 

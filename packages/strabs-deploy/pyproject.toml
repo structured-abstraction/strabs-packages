@@ -3,7 +3,7 @@ name = "strabs-deploy"
 version = "0.1.1"
 description = "Kubernetes deployment utilities"
 requires-python = ">=3.10"
-dependencies = ["strabs-doit>=0.1.1", "invoke", "rich", "pyyaml"]
+dependencies = ["strabs-doit>=0.1.3", "invoke", "rich", "pyyaml"]
 
 [project.optional-dependencies]
 dev = ["pytest>=9.0", "ruff>=0.14", "mypy>=1.19", "types-PyYAML"]
