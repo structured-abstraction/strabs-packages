@@ -14,4 +14,4 @@ Submodules:
 - strabs.deploy.talos - Talos cluster management
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
