@@ -54,6 +54,7 @@ def deploy(
     manifests_dir: Path,
     namespace: str | None = None,
     force: bool = False,
+    adopt: bool = False,
 ) -> bool:
     """Deploy manifests using kapp with confirmation.
 
@@ -63,12 +64,14 @@ def deploy(
         manifests_dir: Directory containing manifests to deploy
         namespace: Optional namespace (uses -n flag)
         force: Skip confirmation if True
+        adopt: Take ownership of resources from another kapp app (migration)
 
     Returns:
         True if deployed successfully, False if aborted
     """
     ns_flag = f"-n {namespace} " if namespace else ""
-    cmd = f"kapp deploy -a {app_name} {ns_flag}-f {manifests_dir}"
+    adopt_flag = "--dangerous-override-ownership-of-existing-resources " if adopt else ""
+    cmd = f"kapp deploy -a {app_name} {ns_flag}{adopt_flag}-f {manifests_dir}"
     return _confirm(c, cmd, "Deploy", force)
 
 
