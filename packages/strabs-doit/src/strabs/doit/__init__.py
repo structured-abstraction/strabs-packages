@@ -5,10 +5,11 @@ Supports:
 - Parallel execution of independent tasks
 - Sequential dependencies with .then()
 - Nested child tasks with .child()
+- Controller tasks with group() - waits for all children to complete
 - Background watchers with .watching() - retry until available, killed on parent complete
 
 Example:
-    from strabs.doit import doit, run
+    from strabs.doit import doit, run, group
 
     # Simple parallel tasks
     doit([
@@ -16,25 +17,22 @@ Example:
         run("typecheck", "npm run typecheck"),
     ])
 
+    # Controller task that waits for children
+    doit([
+        group("build-all").child(
+            run("frontend", "npm run build:frontend")
+        ).child(
+            run("backend", "npm run build:backend")
+        ),
+    ])
+
     # Sequential dependencies (build runs, then test)
     doit([
         run("build", "npm run build").then("test", "npm test"),
     ])
-
-    # Mixed parallel and sequential
-    doit([
-        run("build", "npm build").then("test", "npm test"),
-        run("lint", "npm lint"),  # runs in parallel with build
-    ])
-
-    # Background watchers (retry + kill on complete)
-    doit([
-        run("Creating cluster", "talosctl cluster create ...")
-            .watching("docker logs -f container1"),
-    ])
 """
 
-__version__ = "0.2.0"
+__version__ = "0.1.4"
 
 import concurrent.futures
 import os
@@ -47,7 +45,7 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Callable, Sequence
 
-from rich.console import Console, Group
+from rich.console import Console, Group as RichGroup
 from rich.live import Live
 from rich.text import Text
 
@@ -103,7 +101,7 @@ class TaskBuilder:
     def __init__(
         self,
         name: str,
-        command: str | Callable[[], None],
+        command: str | Callable[[], None] | None = None,
         env: dict[str, str] | None = None,
         cwd: Path | None = None,
         *,
@@ -154,7 +152,7 @@ class _RunningTask:
     """Runtime state for an executing task."""
 
     name: str
-    command: str | Callable[[], None]
+    command: str | Callable[[], None] | None
     env: dict[str, str]
     cwd: Path | None
     retry: bool
@@ -206,23 +204,28 @@ class _TaskRunner:
             runner = _TaskRunner(child, self.output_lines)
             thread = threading.Thread(target=runner.run, daemon=True)
             thread.start()
+            child._thread = thread
             child_threads.append((child, thread))
 
-        # Run main task
+        # Run main task (or wait for children if controller)
         try:
             cmd = self.task.command
-            if callable(cmd):
+            if cmd is None:
+                # Controller task: wait for all children to complete
+                self._wait_for_children(child_threads)
+            elif callable(cmd):
                 self._run_callable(cmd)
             elif self.task.retry:
                 self._run_with_retry(cmd)
             else:
                 self._run_subprocess(cmd)
         finally:
-            # Stop children that should be killed
-            for child, thread in child_threads:
-                if child.kill_on_parent_complete:
-                    self._stop_task(child)
-                thread.join(timeout=1.0)
+            # For non-controller tasks, stop children that should be killed
+            if self.task.command is not None:
+                for child, thread in child_threads:
+                    if child.kill_on_parent_complete:
+                        self._stop_task(child)
+                    thread.join(timeout=1.0)
 
         self.task.end_time = time.time()
 
@@ -235,6 +238,27 @@ class _TaskRunner:
             duration_seconds=self.task.end_time - self.task.start_time,
             children=[self._get_child_result(c) for c in self.task.children],
         )
+
+    def _wait_for_children(
+        self, child_threads: list[tuple[_RunningTask, threading.Thread]]
+    ) -> None:
+        """Wait for all children to complete (controller task behavior)."""
+        # Wait for all children to finish
+        for child, thread in child_threads:
+            thread.join()
+
+        # Determine status based on children
+        all_success = all(
+            child.status == TaskStatus.SUCCESS for child, _ in child_threads
+        )
+        if all_success:
+            self.task.status = TaskStatus.SUCCESS
+            self.task.exit_code = 0
+        else:
+            self.task.status = TaskStatus.FAILED
+            self.task.exit_code = 1
+            failed = [c.name for c, _ in child_threads if c.status == TaskStatus.FAILED]
+            self.task.error_msg = f"Child tasks failed: {', '.join(failed)}"
 
     def _get_child_result(self, child: _RunningTask) -> TaskResult:
         """Get result from a child task."""
@@ -359,13 +383,13 @@ class _DisplayRenderer:
         self.console = Console()
         self._frame = 0
 
-    def render(self) -> Group:
+    def render(self) -> RichGroup:
         """Render all tasks."""
         self._frame = (self._frame + 1) % len(self.SPINNER_FRAMES)
         lines: list[Text] = []
         for task in self.tasks:
             lines.extend(self._render_task(task, prefix="", is_last=True, is_root=True))
-        return Group(*lines)
+        return RichGroup(*lines)
 
     def _render_task(
         self,
@@ -419,27 +443,28 @@ class _DisplayRenderer:
                 self.TREE_PIPE if task.children else self.TREE_SPACE
             )
 
-        # Task output
-        if task.status == TaskStatus.RUNNING:
-            for line in task.output_lines[-self.output_lines :]:
-                output_line = Text()
-                output_line.append(output_prefix, style="dim")
-                output_line.append(line, style="dim")
-                lines.append(output_line)
-        elif task.status == TaskStatus.FAILED:
-            for line in task.all_output[-self.error_lines :]:
-                output_line = Text()
-                output_line.append(output_prefix, style="dim")
-                output_line.append(line, style="red dim")
-                lines.append(output_line)
-            if task.error_msg:
-                error_line = Text()
-                error_line.append(output_prefix, style="dim")
-                error_line.append(task.error_msg, style="red")
-                lines.append(error_line)
+        # Task output (only for non-controller tasks)
+        if task.command is not None:
+            if task.status == TaskStatus.RUNNING:
+                for line in task.output_lines[-self.output_lines :]:
+                    output_line = Text()
+                    output_line.append(output_prefix, style="dim")
+                    output_line.append(line, style="dim")
+                    lines.append(output_line)
+            elif task.status == TaskStatus.FAILED:
+                for line in task.all_output[-self.error_lines :]:
+                    output_line = Text()
+                    output_line.append(output_prefix, style="dim")
+                    output_line.append(line, style="red dim")
+                    lines.append(output_line)
+                if task.error_msg:
+                    error_line = Text()
+                    error_line.append(output_prefix, style="dim")
+                    error_line.append(task.error_msg, style="red")
+                    lines.append(error_line)
 
-        # Children (after output, recursively)
-        if task.status == TaskStatus.RUNNING:
+        # Children (after output, recursively) - show while running OR if controller
+        if task.status == TaskStatus.RUNNING or task.command is None:
             for i, child in enumerate(task.children):
                 is_last_child = i == len(task.children) - 1
                 lines.extend(self._render_task(child, child_prefix, is_last_child))
@@ -566,7 +591,7 @@ def run(
     cwd: Path | None = None,
 ) -> TaskBuilder:
     """
-    Create a task.
+    Create a task that runs a command.
 
     Usage:
         run("name", "command")
@@ -579,6 +604,30 @@ def run(
         run("server", "npm start").watching("tail -f log")
     """
     return TaskBuilder(name, command, env, cwd)
+
+
+def group(name: str) -> TaskBuilder:
+    """
+    Create a controller task that waits for all children to complete.
+
+    A controller task has no command of its own - it simply waits for all
+    its children to finish and reports success only if all children succeed.
+
+    Usage:
+        group("all-builds").child(
+            run("frontend", "npm run build:frontend")
+        ).child(
+            run("backend", "npm run build:backend")
+        )
+
+        # Can be nested
+        group("ci").child(
+            group("build").child(run("app", "npm build"))
+        ).child(
+            group("test").child(run("unit", "npm test"))
+        )
+    """
+    return TaskBuilder(name, command=None)
 
 
 def doit(
@@ -594,13 +643,9 @@ def doit(
         # Chain with .then() for sequential
         doit([run("build", "npm build").then("test", "npm test")])
 
-        # Mixed parallel and sequential
+        # Controller tasks wait for children
         doit([
-            run("build", "npm build").then("test", "npm test"),
-            run("lint", "npm lint"),  # parallel with build
+            group("all").child(run("a", "cmd1")).child(run("b", "cmd2"))
         ])
-
-        # Add watchers
-        doit([run("server", "npm start").watching("tail -f log")])
     """
     return _run_tasks(tasks, config)
